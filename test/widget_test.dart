@@ -3,7 +3,7 @@ import 'package:map_points_app/main.dart';
 
 void main() {
   testWidgets('App loads smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const MapPointsApp());
+    await tester.pumpWidget(const MyApp());
     expect(find.text('Carte des points'), findsOneWidget);
   });
 }

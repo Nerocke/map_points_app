@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'screens/map_screen.dart';
 
 void main() {
-  runApp(const MapPointsApp());
+  runApp(const MyApp());
 }
 
-class MapPointsApp extends StatelessWidget {
-  const MapPointsApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {

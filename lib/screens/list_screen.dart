@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart';
 import '../models/map_point.dart';
 import '../services/database_service.dart';
 
+// TODO: ajouter un tri par nom ou par date plus tard
+
 class ListScreen extends StatefulWidget {
   const ListScreen({super.key});
 
@@ -12,28 +14,28 @@ class ListScreen extends StatefulWidget {
 }
 
 class _ListScreenState extends State<ListScreen> {
-  final DatabaseService _db = DatabaseService();
+  final _db = DatabaseService();
   List<MapPoint> _points = [];
-  bool _loading = true;
+  bool _chargement = true;
 
   @override
   void initState() {
     super.initState();
-    _loadPoints();
+    _chargerPoints();
   }
 
-  Future<void> _loadPoints() async {
-    setState(() => _loading = true);
-    final pts = await _db.getAllPoints();
+  Future<void> _chargerPoints() async {
+    setState(() => _chargement = true);
+    final pts = await _db.getPoints();
     setState(() {
       _points = pts;
-      _loading = false;
+      _chargement = false;
     });
   }
 
-  Future<void> _deletePoint(MapPoint point) async {
-    await _db.deletePoint(point.id!);
-    await _loadPoints();
+  Future<void> _supprimerPoint(MapPoint point) async {
+    await _db.supprimerPoint(point.id!);
+    await _chargerPoints();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${point.name} supprimé')),
@@ -41,18 +43,16 @@ class _ListScreenState extends State<ListScreen> {
     }
   }
 
-  Future<void> _editPoint(MapPoint point) async {
+  Future<void> _renommerPoint(MapPoint point) async {
     final controller = TextEditingController(text: point.name);
-    final newName = await showDialog<String>(
+    final nouveauNom = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Renommer le point'),
+        title: const Text('Renommer'),
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
           onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
         ),
         actions: [
@@ -62,19 +62,19 @@ class _ListScreenState extends State<ListScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Enregistrer'),
+            child: const Text('OK'),
           ),
         ],
       ),
     );
 
-    if (newName != null && newName.isNotEmpty && newName != point.name) {
-      await _db.updatePoint(point.copyWith(name: newName));
-      await _loadPoints();
+    if (nouveauNom != null && nouveauNom.isNotEmpty && nouveauNom != point.name) {
+      await _db.modifierPoint(point.copyWith(name: nouveauNom));
+      await _chargerPoints();
     }
   }
 
-  void _showMiniMap(MapPoint point) {
+  void _voirSurCarte(MapPoint point) {
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -102,8 +102,11 @@ class _ListScreenState extends State<ListScreen> {
                     markers: [
                       Marker(
                         point: LatLng(point.latitude, point.longitude),
-                        child: const Icon(Icons.location_on,
-                            color: Colors.teal, size: 36),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.teal,
+                          size: 36,
+                        ),
                       ),
                     ],
                   ),
@@ -128,7 +131,9 @@ class _ListScreenState extends State<ListScreen> {
                   child: Text(
                     point.name,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -147,7 +152,7 @@ class _ListScreenState extends State<ListScreen> {
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
-      body: _loading
+      body: _chargement
           ? const Center(child: CircularProgressIndicator())
           : _points.isEmpty
               ? Center(
@@ -157,15 +162,15 @@ class _ListScreenState extends State<ListScreen> {
                       Icon(Icons.location_off,
                           size: 64, color: Colors.grey.shade400),
                       const SizedBox(height: 16),
-                      Text(
+                      const Text(
                         'Aucun point enregistré',
-                        style: TextStyle(
-                            fontSize: 16, color: Colors.grey.shade600),
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       const Text(
                         'Reviens sur la carte et appuie pour en ajouter.',
                         style: TextStyle(color: Colors.grey),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -182,17 +187,19 @@ class _ListScreenState extends State<ListScreen> {
                         child: Text(
                           '${i + 1}',
                           style: const TextStyle(
-                              color: Colors.teal,
-                              fontWeight: FontWeight.bold),
+                            color: Colors.teal,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       title: Text(p.name,
-                          style:
-                              const TextStyle(fontWeight: FontWeight.w600)),
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: Text(
                         '${p.latitude.toStringAsFixed(5)}, ${p.longitude.toStringAsFixed(5)}',
                         style: TextStyle(
-                            fontSize: 12, color: Colors.grey.shade600),
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -200,23 +207,20 @@ class _ListScreenState extends State<ListScreen> {
                           IconButton(
                             icon: const Icon(Icons.map_outlined,
                                 color: Colors.teal),
-                            onPressed: () => _showMiniMap(p),
-                            tooltip: 'Voir sur carte',
+                            onPressed: () => _voirSurCarte(p),
                           ),
                           IconButton(
                             icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => _editPoint(p),
-                            tooltip: 'Renommer',
+                            onPressed: () => _renommerPoint(p),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete_outline,
                                 color: Colors.red),
-                            onPressed: () => _deletePoint(p),
-                            tooltip: 'Supprimer',
+                            onPressed: () => _supprimerPoint(p),
                           ),
                         ],
                       ),
-                      onTap: () => _showMiniMap(p),
+                      onTap: () => _voirSurCarte(p),
                     );
                   },
                 ),

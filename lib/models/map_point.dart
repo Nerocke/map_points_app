@@ -1,23 +1,26 @@
+// modele pour un point sur la carte
 class MapPoint {
   final int? id;
   final String name;
   final double latitude;
   final double longitude;
 
-  const MapPoint({
+  MapPoint({
     this.id,
     required this.name,
     required this.latitude,
     required this.longitude,
   });
 
+  // pour sauvegarder dans sqlite
   Map<String, dynamic> toMap() {
-    return {
-      if (id != null) 'id': id,
+    final map = <String, dynamic>{
       'name': name,
       'latitude': latitude,
       'longitude': longitude,
     };
+    if (id != null) map['id'] = id;
+    return map;
   }
 
   factory MapPoint.fromMap(Map<String, dynamic> map) {
@@ -37,7 +40,4 @@ class MapPoint {
       longitude: longitude ?? this.longitude,
     );
   }
-
-  @override
-  String toString() => 'MapPoint(id: $id, name: $name, lat: $latitude, lng: $longitude)';
 }

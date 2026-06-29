@@ -13,28 +13,30 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  final DatabaseService _db = DatabaseService();
-  final MapController _mapController = MapController();
+  final _db = DatabaseService();
+  final _mapController = MapController();
   List<MapPoint> _points = [];
 
   @override
   void initState() {
     super.initState();
-    _loadPoints();
+    _chargerPoints();
   }
 
-  Future<void> _loadPoints() async {
-    final pts = await _db.getAllPoints();
+  Future<void> _chargerPoints() async {
+    final pts = await _db.getPoints();
     setState(() => _points = pts);
   }
 
-  void _onMapTap(TapPosition tapPos, LatLng latlng) {
-    _showAddPointDialog(latlng);
+  // quand on tape sur la carte
+  void _onTap(TapPosition tap, LatLng latlng) {
+    _afficherDialogueAjout(latlng);
   }
 
-  Future<void> _showAddPointDialog(LatLng latlng) async {
+  Future<void> _afficherDialogueAjout(LatLng latlng) async {
     final controller = TextEditingController();
-    final name = await showDialog<String>(
+
+    final nom = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Nouveau point'),
@@ -61,20 +63,20 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
 
-    if (name != null && name.isNotEmpty) {
+    if (nom != null && nom.isNotEmpty) {
       final point = MapPoint(
-        name: name,
+        name: nom,
         latitude: latlng.latitude,
         longitude: latlng.longitude,
       );
-      await _db.insertPoint(point);
-      await _loadPoints();
+      await _db.ajouterPoint(point);
+      await _chargerPoints();
     }
   }
 
-  Future<void> _deletePoint(MapPoint point) async {
-    await _db.deletePoint(point.id!);
-    await _loadPoints();
+  Future<void> _supprimerPoint(MapPoint point) async {
+    await _db.supprimerPoint(point.id!);
+    await _chargerPoints();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${point.name} supprimé')),
@@ -82,41 +84,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  List<Marker> get _markers => _points
-      .map(
-        (p) => Marker(
-          point: LatLng(p.latitude, p.longitude),
-          width: 44,
-          height: 56,
-          child: GestureDetector(
-            onTap: () => _showMarkerOptions(p),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.teal,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    p.name,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-                const Icon(Icons.location_on, color: Colors.teal, size: 28),
-              ],
-            ),
-          ),
-        ),
-      )
-      .toList();
-
-  void _showMarkerOptions(MapPoint point) {
+  void _afficherOptionsMarqueur(MapPoint point) {
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -134,16 +102,51 @@ class _MapScreenState extends State<MapScreen> {
             const Divider(),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Supprimer ce point'),
+              title: const Text('Supprimer'),
               onTap: () {
                 Navigator.of(ctx).pop();
-                _deletePoint(point);
+                _supprimerPoint(point);
               },
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<Marker> _buildMarkers() {
+    return _points.map((p) {
+      return Marker(
+        point: LatLng(p.latitude, p.longitude),
+        width: 44,
+        height: 56,
+        child: GestureDetector(
+          onTap: () => _afficherOptionsMarqueur(p),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.teal,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  p.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+              const Icon(Icons.location_on, color: Colors.teal, size: 28),
+            ],
+          ),
+        ),
+      );
+    }).toList();
   }
 
   @override
@@ -156,19 +159,18 @@ class _MapScreenState extends State<MapScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.list),
-            tooltip: 'Liste des points',
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ListScreen()),
               );
-              _loadPoints();
+              _chargerPoints();
             },
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 10),
             child: Center(
               child: Text(
-                '${_points.length} pt${_points.length != 1 ? "s" : ""}',
+                '${_points.length} pts',
                 style: const TextStyle(fontSize: 13),
               ),
             ),
@@ -180,20 +182,24 @@ class _MapScreenState extends State<MapScreen> {
         options: MapOptions(
           initialCenter: const LatLng(48.8566, 2.3522),
           initialZoom: 12,
-          onTap: _onMapTap,
+          onTap: _onTap,
         ),
         children: [
           TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.ethan.map_points_app',
           ),
-          MarkerLayer(markers: _markers),
+          MarkerLayer(markers: _buildMarkers()),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Appuie sur la carte pour placer un point')),
-        ),
+        onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Appuie sur la carte pour placer un point'),
+            ),
+          );
+        },
         icon: const Icon(Icons.add_location_alt),
         label: const Text('Appuyer sur la carte'),
         backgroundColor: Colors.teal,
